@@ -1,45 +1,85 @@
 import sys
 import re
-from PyQt5.QtWidgets import QApplication, QWidget, QPlainTextEdit, QPushButton, QVBoxLayout, QMessageBox
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QPlainTextEdit, QPushButton,
+    QVBoxLayout, QMessageBox, QHBoxLayout
+)
 
-class URLCorrector(QWidget):
+class URLConverter(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle('URL Corrector')
+        self.setWindowTitle('URL Converter')
 
-        # Create layout
-        layout = QVBoxLayout()
+        # Create main layout
+        main_layout = QVBoxLayout()
 
         # Create plain text area for input URLs
         self.input_area = QPlainTextEdit(self)
         self.input_area.setPlaceholderText("Enter URLs here (one per line, max 100)")
-        layout.addWidget(self.input_area)
+        main_layout.addWidget(self.input_area)
 
-        # Create button to convert URLs
-        self.convert_button = QPushButton('Convert URLs', self)
-        self.convert_button.clicked.connect(self.convert_urls)
-        layout.addWidget(self.convert_button)
+        # Create horizontal layout for buttons
+        button_layout = QHBoxLayout()
+
+        # Create button to sanitize URLs
+        self.sanitize_button = QPushButton('Sanitize', self)
+        self.sanitize_button.clicked.connect(self.sanitize_urls)
+        button_layout.addWidget(self.sanitize_button)
+
+        # Create button to unsanitize URLs
+        self.unsanitize_button = QPushButton('Unsanitize', self)
+        self.unsanitize_button.clicked.connect(self.unsanitize_urls)
+        button_layout.addWidget(self.unsanitize_button)
 
         # Create button to clear text
         self.clear_button = QPushButton('Clear Text', self)
         self.clear_button.clicked.connect(self.clear_text)
-        layout.addWidget(self.clear_button)
+        button_layout.addWidget(self.clear_button)
+
+        main_layout.addLayout(button_layout)
 
         # Create plain text area for output URLs
         self.output_area = QPlainTextEdit(self)
-        self.output_area.setPlaceholderText("Corrected URLs will appear here...")
+        self.output_area.setPlaceholderText("Processed URLs will appear here...")
         self.output_area.setReadOnly(True)
-        layout.addWidget(self.output_area)
+        main_layout.addWidget(self.output_area)
 
-        self.setLayout(layout)
+        self.setLayout(main_layout)
 
-        # **Set the window size to be larger than 800x600**
-        self.setGeometry(100, 100, 1000, 800)  # (x position, y position, width, height)
+        # Set the window size
+        self.setGeometry(100, 100, 1000, 800)
 
-    def convert_urls(self):
+    def sanitize_urls(self):
+        input_urls = self.input_area.toPlainText().splitlines()[:100]
+        sanitized_urls = []
+
+        for url in input_urls:
+            original_url = url.strip()
+            if not original_url:
+                continue  # Skip empty lines
+
+            # Remove spaces within the URL
+            sanitized_url = re.sub(r'\s+', '', original_url)
+
+            # Replace http and https with hXXp and hXXps
+            sanitized_url = re.sub(
+                r'^https?',
+                lambda m: 'hXXps' if m.group(0).lower() == 'https' else 'hXXp',
+                sanitized_url,
+                flags=re.IGNORECASE
+            )
+
+            # Replace . with [.]
+            sanitized_url = sanitized_url.replace('.', '[.]')
+
+            sanitized_urls.append(sanitized_url)
+
+        self.output_area.setPlainText('\n'.join(sanitized_urls) if sanitized_urls else 'No URLs to sanitize.')
+
+    def unsanitize_urls(self):
         input_urls = self.input_area.toPlainText().splitlines()[:100]
         corrected_urls = []
         invalid_urls = []
@@ -99,7 +139,6 @@ class URLCorrector(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = URLCorrector()
+    ex = URLConverter()
     ex.show()
     sys.exit(app.exec_())
-
