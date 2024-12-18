@@ -5,6 +5,39 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QMessageBox, QHBoxLayout
 )
 
+# Define transformation rules
+# Sanitizing rules:
+# 1. Remove all spaces
+# 2. Replace http/https with hXXp/hXXps
+# 3. Replace '.' with '[.]'
+SANITIZE_RULES = [
+    (r'\s+', ''),  # remove internal spaces
+    (r'^https?', lambda m: 'hXXps' if m.group(0).lower() == 'https' else 'hXXp'),
+    (r'\.', '[.]'),
+]
+
+# Unsanitizing rules:
+# 1. Remove all spaces
+# 2. Replace hXXp/hXXps with http/https
+# 3. Replace '[.]' with '.'
+# 4. Replace '[://]' with '://'
+UNSANITIZE_RULES = [
+    (r'\s+', ''),  # remove internal spaces
+    (r'^hXXps?', lambda m: 'https' if m.group(0).lower() == 'hxxps' else 'http'),
+    (r'\[\.\]', '.'),
+    (r'\[://\]', '://'),
+]
+
+def apply_rules(text, rules):
+    """Apply a series of pattern/replacement rules to a text."""
+    for pattern, repl in rules:
+        # If replacement is callable, it likely needs the match object (used in the lambda).
+        if callable(repl):
+            text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
+        else:
+            text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
+    return text
+
 class URLConverter(QWidget):
     def __init__(self):
         super().__init__()
@@ -61,20 +94,8 @@ class URLConverter(QWidget):
             if not original_url:
                 continue  # Skip empty lines
 
-            # Remove spaces within the URL
-            sanitized_url = re.sub(r'\s+', '', original_url)
-
-            # Replace http and https with hXXp and hXXps
-            sanitized_url = re.sub(
-                r'^https?',
-                lambda m: 'hXXps' if m.group(0).lower() == 'https' else 'hXXp',
-                sanitized_url,
-                flags=re.IGNORECASE
-            )
-
-            # Replace . with [.]
-            sanitized_url = sanitized_url.replace('.', '[.]')
-
+            # Apply sanitizing rules
+            sanitized_url = apply_rules(original_url, SANITIZE_RULES)
             sanitized_urls.append(sanitized_url)
 
         self.output_area.setPlainText('\n'.join(sanitized_urls) if sanitized_urls else 'No URLs to sanitize.')
@@ -89,21 +110,10 @@ class URLConverter(QWidget):
             if not original_url:
                 continue  # Skip empty lines
 
-            # Remove spaces within the URL
-            corrected_url = re.sub(r'\s+', '', original_url)
+            # Apply unsanitizing rules
+            corrected_url = apply_rules(original_url, UNSANITIZE_RULES)
 
-            # Replace hXXp and hXXps with http and https
-            corrected_url = re.sub(
-                r'^hXXps?',
-                lambda m: 'https' if m.group(0).lower() == 'hxxps' else 'http',
-                corrected_url,
-                flags=re.IGNORECASE
-            )
-
-            # Replace [.] with .
-            corrected_url = corrected_url.replace('[.]', '.')
-
-            # Extract the domain up to the TLD for validation
+            # Validate the domain after rules have been applied
             domain_match = re.match(r'^(https?://)?([^/\s]+)', corrected_url, flags=re.IGNORECASE)
             if domain_match:
                 domain = domain_match.group(2)
@@ -132,7 +142,6 @@ class URLConverter(QWidget):
 
         self.output_area.setPlainText('\n'.join(corrected_urls) if corrected_urls else 'No valid URLs converted.')
 
-    # Define the clear_text method
     def clear_text(self):
         self.input_area.clear()
         self.output_area.clear()
