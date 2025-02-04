@@ -6,10 +6,11 @@ from PyQt5.QtWidgets import (
 )
 
 # Define transformation rules
+
 # Sanitizing rules:
-# 1. Remove all spaces
-# 2. Replace http/https with hXXp/hXXps
-# 3. Replace '.' with '[.]'
+# 1. Remove all spaces.
+# 2. Replace http/https with hXXp/hXXps.
+# 3. Replace '.' with '[.]'.
 SANITIZE_RULES = [
     (r'\s+', ''),  # remove internal spaces
     (r'^https?', lambda m: 'hXXps' if m.group(0).lower() == 'https' else 'hXXp'),
@@ -17,10 +18,10 @@ SANITIZE_RULES = [
 ]
 
 # Unsanitizing rules:
-# 1. Remove all spaces
-# 2. Replace hXXp/hXXps with http/https
-# 3. Replace '[.]' with '.'
-# 4. Replace '[://]' with '://'
+# 1. Remove all spaces.
+# 2. Replace hXXp/hXXps with http/https.
+# 3. Replace '[.]' with '.'.
+# 4. Replace '[://]' with '://'.
 UNSANITIZE_RULES = [
     (r'\s+', ''),  # remove internal spaces
     (r'^hXXps?', lambda m: 'https' if m.group(0).lower() == 'hxxps' else 'http'),
@@ -96,6 +97,12 @@ class URLConverter(QWidget):
 
             # Apply sanitizing rules
             sanitized_url = apply_rules(original_url, SANITIZE_RULES)
+            
+            # Ensure the sanitized URL includes a protocol.
+            # If it doesn't start with 'hXXp://' or 'hXXps://', add 'hXXp://'
+            if not re.match(r'^hXXps?://', sanitized_url, flags=re.IGNORECASE):
+                sanitized_url = 'hXXp://' + sanitized_url
+
             sanitized_urls.append(sanitized_url)
 
         self.output_area.setPlainText('\n'.join(sanitized_urls) if sanitized_urls else 'No URLs to sanitize.')
@@ -112,16 +119,18 @@ class URLConverter(QWidget):
 
             # Apply unsanitizing rules
             corrected_url = apply_rules(original_url, UNSANITIZE_RULES)
+            
+            # Ensure the unsanitized URL includes a protocol.
+            # If it doesn't start with 'http://' or 'https://', add 'http://'
+            if not re.match(r'^https?://', corrected_url, flags=re.IGNORECASE):
+                corrected_url = 'http://' + corrected_url
 
-            # Validate the domain after rules have been applied
+            # Validate the domain after rules have been applied.
             domain_match = re.match(r'^(https?://)?([^/\s]+)', corrected_url, flags=re.IGNORECASE)
             if domain_match:
                 domain = domain_match.group(2)
-
                 # Validate the domain using a simple regex
-                domain_regex = re.compile(
-                    r'^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$'
-                )
+                domain_regex = re.compile(r'^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$')
                 if domain_regex.match(domain):
                     # The domain is valid, keep the entire URL including paths
                     corrected_urls.append(corrected_url)
